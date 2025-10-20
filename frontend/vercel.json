@@ -1,0 +1,17 @@
+{
+  "buildCommand": "bun run build",
+  "installCommand": "bun install",
+  "devCommand": "bun run dev",
+  "framework": "nuxtjs",
+  "regions": ["iad1"],
+  "env": {
+    "NUXT_PUBLIC_API_URL": {
+      "description": "API 基础 URL",
+      "default": "http://localhost:3000"
+    },
+    "NUXT_PUBLIC_REQUEST_TIMEOUT": {
+      "description": "请求超时时间（毫秒）",
+      "default": "30000"
+    }
+  }
+}
