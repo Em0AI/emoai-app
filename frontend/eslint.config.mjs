@@ -21,10 +21,10 @@ export default withNuxt(
       'spaced-comment': ['error', 'always'],
 
       // 缩进和格式
-      'indent': ['error', 2],
+      'indent': 'off',
       'comma-dangle': ['error', 'always-multiline'],
       'semi': ['error', 'always'],
-      'quotes': ['error', 'single', { avoidEscape: true }],
+      'quotes': 'off',
 
       // 导入规则
       'sort-imports': 'off', // 使用 prettier 处理

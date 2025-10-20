@@ -55,6 +55,7 @@
     "vue-tsc": "^3.1.1"
   },
   "resolutions": {
+    "_comment_unimport": "Pinned to 4.1.1 due to compatibility issues with Nuxt 4. Newer versions of unimport may introduce breaking changes or are not yet supported. Remove or update this pin after verifying compatibility.",
     "unimport": "4.1.1"
   },
   "packageManager": "bun@1.1.0"

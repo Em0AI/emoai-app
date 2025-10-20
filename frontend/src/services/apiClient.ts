@@ -10,13 +10,16 @@ async function fetchWithTimeout(
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
 
-  const response = await fetch(resource, {
-    ...options,
-    signal: controller.signal,
-  });
-
-  clearTimeout(id);
-  return response;
+  let response;
+  try {
+    response = await fetch(resource, {
+      ...options,
+      signal: controller.signal,
+    });
+    return response;
+  } finally {
+    clearTimeout(id);
+  }
 }
 
 export const apiClient = {
