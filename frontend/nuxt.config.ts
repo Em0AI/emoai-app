@@ -10,12 +10,10 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
   ],
 
-  // 禁用 SSR 预渲染以避免 Tailwind colors 导入问题
-  routeRules: {
-    '/**': { cache: { maxAge: 60 * 10, staleMaxAge: 60 * 60 * 24 } },
+  // 构建配置
+  build: {
+    transpile: ['@nuxt/ui', 'tailwindcss'],
   },
-
-  devtools: { enabled: true },
 
   app: {
     head: {
@@ -65,7 +63,7 @@ export default defineNuxtConfig({
         strict: false,
       },
     },
-    // 修复 Tailwind CSS ESM 导入问题 (Node v18+)
+    // 修复 Tailwind CSS ESM 导入问题
     ssr: {
       external: ['tailwindcss'],
     },
@@ -76,13 +74,6 @@ export default defineNuxtConfig({
     prerender: {
       ignore: ['/api'],
       crawlLinks: false,
-    },
-    // 修复 ESM 导入问题
-    rollupConfig: {
-      external: ['tailwindcss'],
-      output: {
-        format: 'es',
-      },
     },
   },
 });
