@@ -30,14 +30,24 @@ jobs:
           NUXT_PUBLIC_API_URL: ${{ secrets.NUXT_PUBLIC_API_URL }}
           NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
 
+      - name: Build Vercel prebuilt output
+        if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+        run: |
+          cd frontend
+          npx vercel build --token ${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.PROJECT_ID }}
+
       - name: Deploy to Vercel Preview
+        if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
         uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.ORG_ID }}
           vercel-project-id: ${{ secrets.PROJECT_ID }}
           github-comment: true
-          vercel-args: ''
+          vercel-args: '--prebuilt'
           working-directory: ./frontend
 
       - name: Comment PR
