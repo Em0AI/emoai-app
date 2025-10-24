@@ -30,6 +30,15 @@ jobs:
           NUXT_PUBLIC_API_URL: ${{ secrets.NUXT_PUBLIC_API_URL }}
           NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
 
+      - name: Pull Vercel project settings
+        if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+        run: |
+          cd frontend
+          npx vercel pull --yes --token ${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.PROJECT_ID }}
+
       - name: Build Vercel prebuilt output
         if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
         run: |
