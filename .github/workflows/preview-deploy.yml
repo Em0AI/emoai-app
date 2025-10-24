@@ -37,16 +37,18 @@ jobs:
       - name: Pull Vercel project settings
         run: |
           cd frontend
-          npx vercel pull --yes --token ${{ secrets.VERCEL_TOKEN }}
+          npx vercel pull --yes --token "$VERCEL_TOKEN"
         env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.PROJECT_ID }}
 
       - name: Build Vercel prebuilt output
         run: |
           cd frontend
-          npx vercel build --token ${{ secrets.VERCEL_TOKEN }}
+          npx vercel build --token "$VERCEL_TOKEN"
         env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.PROJECT_ID }}
 
