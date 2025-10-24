@@ -35,7 +35,6 @@ jobs:
           NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
 
       - name: Pull Vercel project settings
-        if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
         run: |
           cd frontend
           npx vercel pull --yes --token ${{ secrets.VERCEL_TOKEN }}
@@ -44,7 +43,6 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.PROJECT_ID }}
 
       - name: Build Vercel prebuilt output
-        if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
         run: |
           cd frontend
           npx vercel build --token ${{ secrets.VERCEL_TOKEN }}
@@ -53,7 +51,6 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.PROJECT_ID }}
 
       - name: Deploy to Vercel Preview
-        if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
         uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
