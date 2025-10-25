@@ -8,7 +8,7 @@
       <!-- 左侧角色信息 -->
       <div class="chat-character-info">
         <img :src="character.avatar" :alt="character.name" class="chat-avatar">
-        <p class="chat-role-text">{{ character.role }}</p>
+        <p class="chat-role-text">{{ character.name }}</p>
         <button class="change-button" @click="goBack">
           <span class="change-icon">↻</span> Change
         </button>

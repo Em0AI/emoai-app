@@ -1,12 +1,17 @@
 <template>
   <div class="app-header">
     <div class="logo-section" @click="navigate('/')">
-      <img src="/images/logo.svg" alt="EMO AI Logo" class="logo-image">
-      <div class="logo-text-container">
+      <img src="/images/logo.svg" alt="EMO AI Logo" class="logo-image" />
+      <div class="logo-text-container" v-if="!headerTitle">
         <span class="logo-main">EMO AI</span>
         <span class="logo-sub">will always be with you</span>
       </div>
     </div>
+
+    <div class="header-center">
+      <h1 v-if="headerTitle" class="character-title">{{ headerTitle }}</h1>
+    </div>
+
     <nav class="nav-section">
       <div class="nav-item" :class="{ active: isHomeOrChatActive }" @click="navigate(chatLink)">
         <img src="/icons/chat-icon.png" alt="Talk" class="nav-icon" >
@@ -23,6 +28,9 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+import { useHeaderTitle } from '~/composables/useHeaderState';
+
+const headerTitle = useHeaderTitle();
 
 const router = useRouter();
 const route = useRoute();
@@ -49,8 +57,8 @@ const isDiaryActive = computed(() => route.path.startsWith('/diary'));
 
 <style scoped>
 .app-header {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
   align-items: center;
   padding: 1rem 1.875rem;
   background-color: var(--color-header-bg);
@@ -65,7 +73,7 @@ const isDiaryActive = computed(() => route.path.startsWith('/diary'));
 }
 
 .logo-image {
-  height: 100px;
+  height: 50px;
   width: auto;
 }
 
@@ -88,8 +96,20 @@ const isDiaryActive = computed(() => route.path.startsWith('/diary'));
   line-height: 1;
 }
 
+.header-center {
+  text-align: center;
+}
+
+.character-title {
+  font-size: 1.75rem; /* 28px */
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
 .nav-section {
   display: flex;
+  justify-content: flex-end;
   gap: 2.5rem;
   position: relative;
   top: 4px;
