@@ -5,9 +5,7 @@
       <div class="character-selection-area">
         <HomeCharacterGrid :characters="characters" />
       </div>
-      <div class="more-text-container">
-        <p class="more-text">More......</p>
-      </div>
+      
     </div>
     <HomeFooter />
   </div>
