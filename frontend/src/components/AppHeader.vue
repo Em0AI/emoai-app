@@ -1,8 +1,11 @@
 <template>
   <div class="app-header">
     <div class="logo-section" @click="navigate('/')">
-      <span class="logo-main">EMO AI</span>
-      <span class="logo-sub">will always be with you</span>
+      <img src="/images/logo.svg" alt="EMO AI Logo" class="logo-image">
+      <div class="logo-text-container">
+        <span class="logo-main">EMO AI</span>
+        <span class="logo-sub">will always be with you</span>
+      </div>
     </div>
     <nav class="nav-section">
       <div class="nav-item" :class="{ active: isHomeOrChatActive }" @click="navigate(chatLink)">
@@ -56,9 +59,19 @@ const isDiaryActive = computed(() => route.path.startsWith('/diary'));
 
 .logo-section {
   display: flex;
-  align-items: baseline;
-  gap: 0.625rem;
+  align-items: center;
+  gap: 0.75rem; /* 12px gap between image and text */
   cursor: pointer;
+}
+
+.logo-image {
+  height: 100px;
+  width: auto;
+}
+
+.logo-text-container {
+  display: flex;
+  flex-direction: column;
 }
 
 .logo-main {
@@ -66,11 +79,13 @@ const isDiaryActive = computed(() => route.path.startsWith('/diary'));
   font-weight: 500;
   color: var(--color-text-primary);
   font-family: system-ui, -apple-system, sans-serif;
+  line-height: 1;
 }
 
 .logo-sub {
   font-size: 20px;
   color: #7C6B57;
+  line-height: 1;
 }
 
 .nav-section {
