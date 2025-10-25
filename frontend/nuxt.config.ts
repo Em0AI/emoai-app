@@ -33,6 +33,17 @@ export default defineNuxtConfig({
     public: {
       apiUrl: process.env.NUXT_PUBLIC_API_URL || 'http://localhost:3000',
       requestTimeout: process.env.NUXT_PUBLIC_REQUEST_TIMEOUT || '30000',
+      nvidiaApiKey: process.env.NVIDIA_API_KEY || '',
+    },
+  },
+
+  // Nitro 服务器配置
+  nitro: {
+    baseURL: '/',
+    // 明确指定 server API 扫描目录
+    scanDirs: ['src/server'],
+    routeRules: {
+      '/api/**': { cors: true },
     },
   },
 
@@ -55,7 +66,7 @@ export default defineNuxtConfig({
           '**/.nuxt/**',
           '**/.bun/**',
           '**/dist/**',
-          '**/chat/**',
+          // '**/chat/**',
           '**/.next/**',
         ],
       },
@@ -66,14 +77,6 @@ export default defineNuxtConfig({
     // 修复 Tailwind CSS ESM 导入问题
     ssr: {
       external: ['tailwindcss'],
-    },
-  },
-
-  // Nitro 服务器配置
-  nitro: {
-    prerender: {
-      ignore: ['/api'],
-      crawlLinks: false,
     },
   },
 });
