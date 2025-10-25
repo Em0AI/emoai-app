@@ -39,25 +39,25 @@ jobs:
           cd frontend
           npx vercel pull --yes --token "$VERCEL_TOKEN"
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.PROJECT_ID }}
+          VERCEL_TOKEN: ${{ vars.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
 
       - name: Build Vercel prebuilt output
         run: |
           cd frontend
           npx vercel build --token "$VERCEL_TOKEN"
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.PROJECT_ID }}
+          VERCEL_TOKEN: ${{ vars.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
 
       - name: Deploy to Vercel Preview
         uses: amondnet/vercel-action@v25
         with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.ORG_ID }}
-          vercel-project-id: ${{ secrets.PROJECT_ID }}
+          vercel-token: ${{ vars.VERCEL_TOKEN }}
+          vercel-org-id: ${{ vars.ORG_ID }}
+          vercel-project-id: ${{ vars.PROJECT_ID }}
           github-comment: true
           vercel-args: '--prebuilt'
           working-directory: ./frontend
