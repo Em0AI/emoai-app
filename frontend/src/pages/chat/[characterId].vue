@@ -9,30 +9,38 @@
       <div class="chat-character-info">
         <img :src="character.avatar" :alt="character.name" class="chat-avatar">
         <p class="chat-role-text">{{ character.name }}</p>
-        <button class="change-button" @click="goBack">
-          <span class="change-icon">↻</span> Change
-        </button>
       </div>
 
       <!-- 右侧对话气泡 -->
       <div class="chat-bubble-area">
-        <div class="chat-bubble">
-          <p class="bubble-text">
-            My dear friend, what’s on your mind?
-            Whatever you’d like to share, I’m here with you — always.
-          </p>
+        <ChatBubble
+          v-for="msg in messages"
+          :key="msg.id"
+          :message="msg.content"
+          :is-user="msg.role === 'user'"
+        />
+        <div v-if="isLoading" class="chat-bubble-loading">
+          <p class="bubble-text">Thinking...</p>
         </div>
       </div>
     </div>
 
     <!-- 底部输入区 -->
     <div class="chat-input-area">
-      <input type="text" placeholder="Let’s begin our chat ~" class="chat-input">
+      <input
+        v-model="inputText"
+        type="text"
+        placeholder="Let's begin our chat ~"
+        class="chat-input"
+        @keyup.enter="sendMessage"
+      >
       <div class="buttons-group">
         <button class="voice-button"><img src="/icons/audio-icon.png" alt="Voice" class="btn-icon"></button>
-        <button class="send-button"><img src="/icons/send-icon.png" alt="Send" class="btn-icon"></button>
+        <button class="send-button" @click="sendMessage"><img src="/icons/send-icon.png" alt="Send" class="btn-icon"></button>
       </div>
     </div>
+
+    <ExitPrompt v-if="showExitPrompt" />
   </div>
   <div v-else>
     <p>Character not found. Redirecting...</p>
@@ -40,9 +48,16 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { CHARACTERS } from '~/constants/characters';
-import AppHeader from '~/components/AppHeader.vue'; // 引入通用头部组件
+import AppHeader from '~/components/AppHeader.vue';
+import ChatBubble from '~/components/ChatBubble.vue';
+import ExitPrompt from '~/components/chat/ExitPrompt.vue'; // 导入 ExitPrompt 组件
+import { streamChatMessage } from '~/services/chatService';
+import type { ChatMessage } from '~/types/chat';
+
+const showExitPrompt = ref(false);
 
 const route = useRoute();
 const router = useRouter();
@@ -54,9 +69,90 @@ if (!character) {
   router.replace('/');
 }
 
-const goBack = () => {
-  router.back();
+const messages = ref<ChatMessage[]>([
+  {
+    id: '0',
+    role: 'assistant',
+    characterId: characterId,
+    content: character ? `Hello! I'm ${character.name}, your ${character.role}. ${character.description}` : 'Hello!',
+    timestamp: Date.now(),
+  },
+]);
+
+const inputText = ref('');
+const isLoading = ref(false);
+
+/**
+ * 发送消息到流式 API 并处理响应
+ */
+const sendMessage = async (): Promise<void> => {
+  // Check for the trigger keyword first
+  if (inputText.value.trim().toLowerCase() === 'exit') {
+    showExitPrompt.value = true;
+    inputText.value = ''; // Clear input
+    return;
+  }
+
+  if (!inputText.value.trim() || isLoading.value) {
+    return;
+  }
+
+  const userMessage: ChatMessage = {
+    id: `msg_${Date.now()}`,
+    role: 'user',
+    characterId: characterId,
+    content: inputText.value,
+    timestamp: Date.now(),
+  };
+
+  messages.value.push(userMessage);
+  const userInput = inputText.value;
+  inputText.value = '';
+  isLoading.value = true;
+
+  try {
+    // 创建助手消息容器
+    const assistantMessage: ChatMessage = {
+      id: `msg_${Date.now()}_assistant`,
+      role: 'assistant',
+      characterId: characterId,
+      content: '',
+      timestamp: Date.now(),
+    };
+    messages.value.push(assistantMessage);
+
+    // 流式接收消息
+    for await (const chunk of streamChatMessage(
+      characterId,
+      userInput,
+      messages.value.filter(m => m.id !== userMessage.id && m.id !== assistantMessage.id),
+    )) {
+      assistantMessage.content += chunk;
+    }
+
+    isLoading.value = false;
+  } catch (error) {
+    console.error('Failed to send message:', error);
+    isLoading.value = false;
+
+    // 移除空的助手消息，用错误消息替换
+    const lastMessage = messages.value[messages.value.length - 1];
+    if (lastMessage?.role === 'assistant' && lastMessage.content === '') {
+      messages.value.pop();
+    }
+
+    // 添加错误提示消息
+    messages.value.push({
+      id: `msg_${Date.now()}_error`,
+      role: 'assistant',
+      characterId: characterId,
+      content: `Error: ${error instanceof Error ? error.message : 'Unknown error'}. Please check the API server.`,
+      timestamp: Date.now(),
+    });
+  }
 };
+
+
 </script>
 
 <style scoped>
@@ -110,54 +206,39 @@ const goBack = () => {
   margin-bottom: 0.75rem; /* 12px */
 }
 
-.change-button {
-  font-size: 0.9375rem; /* 15px */
-  color: #4FA3DA; /* 浅蓝灰 */
-  background: none;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem; /* 4px */
-  transition: all 0.2s ease-in-out;
-  margin-top: 6px; /* move down */
-}
 
-.change-button:hover {
-  color: #0066CC; /* 深蓝 */
-  text-decoration: underline;
-}
-
-.change-button:focus {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-}
-
-.change-icon {
-  font-size: 1rem; /* 16px */
-}
 
 .chat-bubble-area {
   flex-grow: 1;
-  justify-content: flex-start;
-  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
   padding-right: 1.875rem; /* 30px (对话气泡与右侧边距) */
-  margin-top: 1.5rem; /* Increased top margin for spacing */
+  margin-top: 1.5rem;
+  overflow-y: auto;
 }
 
-.chat-bubble {
-  background-color: var(--color-bubble-bg);
+.chat-bubble-loading {
+  background-color: #F0F0F0;
   border: 1px solid var(--color-bubble-border);
-  border-radius: 16px; /* 16px */
+  border-radius: 16px;
   padding: 12px 20px;
-  max-width: 66%; /* Increased width */
-  box-shadow: 0 2px 4px rgba(0,0,0,0.06); /* Added shadow */
+  max-width: 66%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+  align-self: flex-start;
 }
 
-.bubble-text {
-  font-size: 1.125rem; /* 18px */
-  color: #000000; /* 黑色 */
-  font-weight: 500; /* 加粗 */
+.chat-bubble-loading .bubble-text {
+  font-size: 1.125rem;
+  color: #000000;
+  font-weight: 500;
+  margin: 0;
+  animation: blink 1.5s infinite;
+}
+
+@keyframes blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0.5; }
 }
 
 .chat-input-area {
