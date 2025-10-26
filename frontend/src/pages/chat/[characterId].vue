@@ -9,9 +9,6 @@
       <div class="chat-character-info">
         <img :src="character.avatar" :alt="character.name" class="chat-avatar">
         <p class="chat-role-text">{{ character.name }}</p>
-        <button class="change-button" @click="goBack">
-          <span class="change-icon">↻</span> Change
-        </button>
       </div>
 
       <!-- 右侧对话气泡 -->
@@ -155,9 +152,7 @@ const sendMessage = async (): Promise<void> => {
   }
 };
 
-const goBack = () => {
-  router.back();
-};
+
 </script>
 
 <style scoped>
@@ -211,32 +206,7 @@ const goBack = () => {
   margin-bottom: 0.75rem; /* 12px */
 }
 
-.change-button {
-  font-size: 0.9375rem; /* 15px */
-  color: #4FA3DA; /* 浅蓝灰 */
-  background: none;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem; /* 4px */
-  transition: all 0.2s ease-in-out;
-  margin-top: 6px; /* move down */
-}
 
-.change-button:hover {
-  color: #0066CC; /* 深蓝 */
-  text-decoration: underline;
-}
-
-.change-button:focus {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-}
-
-.change-icon {
-  font-size: 1rem; /* 16px */
-}
 
 .chat-bubble-area {
   flex-grow: 1;
