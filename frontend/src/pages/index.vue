@@ -5,7 +5,6 @@
       <div class="character-selection-area">
         <HomeCharacterGrid :characters="characters" />
       </div>
-      
     </div>
     <HomeFooter />
   </div>
@@ -13,7 +12,7 @@
 
 <script setup lang="ts">
 import { CHARACTERS } from '~/constants/characters';
-import AppHeader from '~/components/AppHeader.vue'; // 引用 AppHeader
+import AppHeader from '~/components/AppHeader.vue';
 import HomeFooter from '~/components/home/HomeFooter.vue';
 
 const characters = CHARACTERS;

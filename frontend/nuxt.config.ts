@@ -32,6 +32,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       apiUrl: process.env.NUXT_PUBLIC_API_URL || 'http://localhost:3000',
+      backendUrl: process.env.NUXT_PUBLIC_BACKEND_URL || 'http://localhost:8010', // Add this line
       requestTimeout: process.env.NUXT_PUBLIC_REQUEST_TIMEOUT || '30000',
       nvidiaApiKey: process.env.NVIDIA_API_KEY || '',
     },

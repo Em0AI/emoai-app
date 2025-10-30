@@ -1,8 +1,8 @@
 <template>
   <div class="app-header">
     <div class="logo-section" @click="navigate('/')">
-      <img src="/images/logo.svg" alt="EMO AI Logo" class="logo-image" />
-      <div class="logo-text-container" v-if="!headerTitle">
+      <img src="/images/logo.svg" alt="EMO AI Logo" class="logo-image" >
+      <div v-if="!headerTitle" class="logo-text-container">
         <span class="logo-main">EMO AI</span>
         <span class="logo-sub">will always be with you</span>
       </div>
@@ -14,11 +14,11 @@
 
     <nav class="nav-section">
       <div class="nav-item" :class="{ active: isHomeOrChatActive }" @click="navigate(chatLink)">
-        <img src="/icons/chat-icon.png" alt="Talk" class="nav-icon" >
+        <Icon icon="mdi:chat-outline" class="nav-icon" />
         <span class="nav-text">Talk With Us</span>
       </div>
       <div class="nav-item" :class="{ active: isDiaryActive }" @click="navigate('/diary')">
-        <img src="/icons/diary-icon.png" alt="Diary" class="nav-icon" >
+        <Icon icon="mdi:book-open-page-variant" class="nav-icon" />
         <span class="nav-text">Emotional Diary</span>
       </div>
     </nav>
@@ -28,6 +28,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+import { Icon } from '@iconify/vue';
 import { useHeaderTitle } from '~/composables/useHeaderState';
 
 const headerTitle = useHeaderTitle();
@@ -60,7 +61,7 @@ const isDiaryActive = computed(() => route.path.startsWith('/diary'));
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   align-items: center;
-  padding: 1rem 1.875rem;
+  padding: 1.25rem 1.875rem;
   background-color: var(--color-header-bg);
   border-bottom: 1px solid var(--color-border);
 }
@@ -73,7 +74,7 @@ const isDiaryActive = computed(() => route.path.startsWith('/diary'));
 }
 
 .logo-image {
-  height: 50px;
+  height: 72px;
   width: auto;
 }
 
@@ -83,16 +84,17 @@ const isDiaryActive = computed(() => route.path.startsWith('/diary'));
 }
 
 .logo-main {
-  font-size: 36px;
-  font-weight: 500;
+  font-size: 3rem;
+  font-weight: bold;
   color: var(--color-text-primary);
   font-family: system-ui, -apple-system, sans-serif;
   line-height: 1;
 }
 
 .logo-sub {
-  font-size: 20px;
-  color: #7C6B57;
+  font-size: 1.5rem;
+  color: var(--color-text-secondary);
+  font-weight: 300;
   line-height: 1;
 }
 
@@ -126,7 +128,7 @@ const isDiaryActive = computed(() => route.path.startsWith('/diary'));
 }
 
 .nav-text {
-  font-size: 0.875rem;
+  font-size: 1rem;
   font-weight: 500;
 }
 
@@ -147,5 +149,6 @@ const isDiaryActive = computed(() => route.path.startsWith('/diary'));
   width: 30px;
   height: 30px;
   transition: transform 0.2s;
+  color: inherit;
 }
 </style>
