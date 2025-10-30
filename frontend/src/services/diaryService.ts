@@ -1,4 +1,5 @@
 import type { DiaryRecord } from '~/types';
+import { formatISO } from 'date-fns';
 
 const MOCK_DIARY_DATA: DiaryRecord[] = [
   {
@@ -30,18 +31,35 @@ const MOCK_DIARY_DATA: DiaryRecord[] = [
 ];
 
 export const diaryService = {
+  /**
+   * Attempt to fetch diary list from backend `/api/diary`.
+   * Falls back to MOCK data if the request fails.
+   */
   async getDiaryList(): Promise<DiaryRecord[]> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve(MOCK_DIARY_DATA);
-      }, 500);
-    });
+    try {
+      const res = await fetch('/api/diary');
+      if (!res.ok) throw new Error(`Failed to fetch diary list: ${res.status}`);
+      const data = await res.json();
+      // Expecting an array of diary records from backend
+      return data;
+  } catch {
+      // Fallback to mock with ensured ISO dates
+      return MOCK_DIARY_DATA.map(d => ({ ...d, date: d.date || formatISO(new Date(d.createdAt || Date.now()), { representation: 'date' }) }));
+    }
   },
+
+  /**
+   * Attempt to fetch a diary entry by date from `/api/diary/{date}`.
+   * Falls back to mock data if the request fails or the endpoint is not available.
+   */
   async getDiaryByDate(date: string): Promise<DiaryRecord | undefined> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve(MOCK_DIARY_DATA.find(d => d.date === date));
-      }, 500);
-    });
+    try {
+      const res = await fetch(`/api/diary/${encodeURIComponent(date)}`);
+      if (!res.ok) throw new Error(`Failed to fetch diary entry: ${res.status}`);
+      const entry = await res.json();
+      return entry;
+    } catch {
+      return MOCK_DIARY_DATA.find(d => d.date === date);
+    }
   },
 };
