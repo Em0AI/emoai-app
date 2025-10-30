@@ -12,7 +12,7 @@
       </div>
 
       <!-- 右侧对话气泡 -->
-      <div class="chat-bubble-area">
+      <div ref="bubbleAreaRef" class="chat-bubble-area">
         <ChatBubble
           v-for="msg in messages"
           :key="msg.id"
@@ -20,7 +20,11 @@
           :is-user="msg.role === 'user'"
         />
         <div v-if="isLoading" class="chat-bubble-loading">
-          <p class="bubble-text">Thinking...</p>
+          <div class="typing-dots">
+            <span class="dot" />
+            <span class="dot" />
+            <span class="dot" />
+          </div>
         </div>
       </div>
     </div>
@@ -35,8 +39,7 @@
         @keyup.enter="sendMessage"
       >
       <div class="buttons-group">
-        <button class="voice-button"><img src="/icons/audio-icon.png" alt="Voice" class="btn-icon"></button>
-        <button class="send-button" @click="sendMessage"><img src="/icons/send-icon.png" alt="Send" class="btn-icon"></button>
+        <button class="send-button" @click="sendMessage"><Icon icon="mdi:send" class="btn-icon" /></button>
       </div>
     </div>
 
@@ -48,8 +51,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { Icon } from '@iconify/vue';
 import { CHARACTERS } from '~/constants/characters';
 import AppHeader from '~/components/AppHeader.vue';
 import ChatBubble from '~/components/ChatBubble.vue';
@@ -64,6 +68,9 @@ const router = useRouter();
 const characterId = route.params.characterId as string;
 const character = CHARACTERS.find(c => c.id === characterId);
 
+// 气泡区域的 ref，用于自动滚动
+const bubbleAreaRef = ref<HTMLDivElement | null>(null);
+
 // 如果角色不存在，重定向到首页
 if (!character) {
   router.replace('/');
@@ -71,7 +78,7 @@ if (!character) {
 
 const messages = ref<ChatMessage[]>([
   {
-    id: '0',
+    id: 'greeting',
     role: 'assistant',
     characterId: characterId,
     content: character ? `Hello! I'm ${character.name}, your ${character.role}. ${character.description}` : 'Hello!',
@@ -81,6 +88,30 @@ const messages = ref<ChatMessage[]>([
 
 const inputText = ref('');
 const isLoading = ref(false);
+
+/**
+ * 自动滚动到最新消息
+ */
+const scrollToBottom = async (): Promise<void> => {
+  await nextTick();
+  if (bubbleAreaRef.value) {
+    // 使用 requestAnimationFrame 确保在下一帧滚动，避免阻塞
+    requestAnimationFrame(() => {
+      if (bubbleAreaRef.value) {
+        bubbleAreaRef.value.scrollTop = bubbleAreaRef.value.scrollHeight;
+      }
+    });
+  }
+};
+
+/**
+ * 监听全局隐藏退出提示事件
+ */
+onMounted(() => {
+  window.addEventListener('hideExitPrompt', () => {
+    showExitPrompt.value = false;
+  });
+});
 
 /**
  * 发送消息到流式 API 并处理响应
@@ -109,46 +140,98 @@ const sendMessage = async (): Promise<void> => {
   const userInput = inputText.value;
   inputText.value = '';
   isLoading.value = true;
+  await scrollToBottom();
+
+  let assistantMessage: ChatMessage | null = null;
+  let updateTimeout: NodeJS.Timeout | null = null;
+  let lastUpdate = Date.now();
 
   try {
-    // 创建助手消息容器
-    const assistantMessage: ChatMessage = {
-      id: `msg_${Date.now()}_assistant`,
-      role: 'assistant',
-      characterId: characterId,
-      content: '',
-      timestamp: Date.now(),
-    };
-    messages.value.push(assistantMessage);
+    // Build history: include all messages except the greeting and current user message
+    // This ensures we don't send the initial greeting to the backend, preventing duplication
+    const historyMessages = messages.value
+      .filter(m => m.id !== 'greeting' && m.id !== userMessage.id);
+
+    let bufferedContent = '';
 
     // 流式接收消息
     for await (const chunk of streamChatMessage(
       characterId,
       userInput,
-      messages.value.filter(m => m.id !== userMessage.id && m.id !== assistantMessage.id),
+      historyMessages,
     )) {
-      assistantMessage.content += chunk;
+      // 在接收到第一个 chunk 时创建助手消息
+      if (!assistantMessage) {
+        isLoading.value = false; // 立即隐藏加载状态
+        assistantMessage = {
+          id: `msg_${Date.now()}_assistant`,
+          role: 'assistant',
+          characterId: characterId,
+          content: chunk,
+          timestamp: Date.now(),
+        };
+        messages.value.push(assistantMessage);
+        bufferedContent = chunk;
+        await scrollToBottom();
+      } else {
+        // 后端返回的 chunk 是累积的完整内容，缓冲后定时更新以避免频繁重渲染
+        bufferedContent = chunk;
+
+        // 每 50ms 最多更新一次，避免过度渲染
+        const now = Date.now();
+        if (now - lastUpdate >= 50) {
+          assistantMessage.content = bufferedContent;
+          lastUpdate = now;
+
+          // 定期滚动，但不是每次都滚动
+          if (now % 200 < 50) {
+            await scrollToBottom();
+          }
+        } else if (!updateTimeout) {
+          // 设置一个延迟的更新，确保最后一个 chunk 也被显示
+          updateTimeout = setTimeout(() => {
+            if (assistantMessage) {
+              assistantMessage.content = bufferedContent;
+              lastUpdate = Date.now();
+              updateTimeout = null;
+            }
+          }, 50 - (now - lastUpdate));
+        }
+      }
     }
 
+    // 确保最后的内容被显示
+    if (assistantMessage && bufferedContent !== assistantMessage.content) {
+      assistantMessage.content = bufferedContent;
+    }
+
+    // 最后滚动确保内容完整可见
+    await scrollToBottom();
     isLoading.value = false;
+
+    if (updateTimeout) {
+      clearTimeout(updateTimeout);
+    }
   } catch (error) {
     console.error('Failed to send message:', error);
     isLoading.value = false;
 
-    // 移除空的助手消息，用错误消息替换
-    const lastMessage = messages.value[messages.value.length - 1];
-    if (lastMessage?.role === 'assistant' && lastMessage.content === '') {
-      messages.value.pop();
+    // 清理超时
+    if (updateTimeout) {
+      clearTimeout(updateTimeout);
     }
 
-    // 添加错误提示消息
-    messages.value.push({
-      id: `msg_${Date.now()}_error`,
-      role: 'assistant',
-      characterId: characterId,
-      content: `Error: ${error instanceof Error ? error.message : 'Unknown error'}. Please check the API server.`,
-      timestamp: Date.now(),
-    });
+    // 如果有部分响应但最后出错，保留已有内容
+    if (!assistantMessage) {
+      // 添加错误提示消息
+      messages.value.push({
+        id: `msg_${Date.now()}_error`,
+        role: 'assistant',
+        characterId: characterId,
+        content: `Error: ${error instanceof Error ? error.message : 'Unknown error'}. Please check the API server.`,
+        timestamp: Date.now(),
+      });
+    }
   }
 };
 
@@ -213,9 +296,28 @@ const sendMessage = async (): Promise<void> => {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  padding-right: 1.875rem; /* 30px (对话气泡与右侧边距) */
+  padding-right: 0.5rem; /* 减少右边距以给滚动条留空间 */
   margin-top: 1.5rem;
   overflow-y: auto;
+  min-height: 0; /* 允许 flex 容器正确计算高度 */
+}
+
+/* 自定义滚动条样式 */
+.chat-bubble-area::-webkit-scrollbar {
+  width: 8px;
+}
+
+.chat-bubble-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-bubble-area::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: var(--radius-full);
+}
+
+.chat-bubble-area::-webkit-scrollbar-thumb:hover {
+  background: var(--color-secondary);
 }
 
 .chat-bubble-loading {
@@ -228,17 +330,37 @@ const sendMessage = async (): Promise<void> => {
   align-self: flex-start;
 }
 
-.chat-bubble-loading .bubble-text {
-  font-size: 1.125rem;
-  color: #000000;
-  font-weight: 500;
-  margin: 0;
-  animation: blink 1.5s infinite;
+.typing-dots {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
-@keyframes blink {
-  0%, 49% { opacity: 1; }
-  50%, 100% { opacity: 0.5; }
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #666;
+  animation: typing-bounce 1.4s infinite;
+}
+
+.dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typing-bounce {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.7;
+  }
+  30% {
+    transform: translateY(-8px);
+    opacity: 1;
+  }
 }
 
 .chat-input-area {
@@ -283,6 +405,7 @@ const sendMessage = async (): Promise<void> => {
 }
 
 .voice-button,
+.voice-button,
 .send-button {
   width: 64px;
   height: 64px;
@@ -299,5 +422,6 @@ const sendMessage = async (): Promise<void> => {
 .btn-icon {
   width: 32px;
   height: 32px;
+  color: inherit;
 }
 </style>

@@ -3,8 +3,9 @@ import { CHARACTERS } from '~/constants/characters';
 
 /**
  * 获取角色的系统提示词
+ * 注：不再使用，因为后端自己管理系统提示词
  */
-function getSystemPrompt(characterId: string): string {
+function _getSystemPrompt(characterId: string): string {
   const character = CHARACTERS.find(c => c.id === characterId);
   if (!character) {
     return 'You are a helpful and empathetic AI assistant.';
@@ -17,7 +18,7 @@ function getSystemPrompt(characterId: string): string {
  * 发送消息到后端 API 并处理流式响应
  * @param characterId - 角色 ID
  * @param message - 用户消息
- * @param history - 消息历史
+ * @param history - 消息历史（不包括当前用户消息）
  * @returns 异步生成器，逐个返回响应文本块
  */
 export async function* streamChatMessage(
@@ -25,21 +26,18 @@ export async function* streamChatMessage(
   message: string,
   history: ChatMessage[],
 ): AsyncGenerator<string, void, unknown> {
-  // 构建消息历史
-  const messages = [
-    {
-      role: 'system' as const,
-      content: getSystemPrompt(characterId),
-    },
-    ...history.map(msg => ({
-      role: msg.role as 'user' | 'assistant',
-      content: msg.content,
-    })),
-    {
-      role: 'user' as const,
-      content: message,
-    },
-  ];
+  // Build message history for the API request
+  // Note: The backend manages system prompts, so we only send user/assistant history
+  const messages = history.map(msg => ({
+    role: msg.role as 'user' | 'assistant',
+    content: msg.content,
+  }))
+    .concat([
+      {
+        role: 'user' as const,
+        content: message,
+      },
+    ]);
 
   try {
     const response = await fetch('/api/chat/stream', {
@@ -63,6 +61,7 @@ export async function* streamChatMessage(
     }
 
     const decoder = new TextDecoder();
+    let chunkCount = 0;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -70,55 +69,55 @@ export async function* streamChatMessage(
 
       const chunk = decoder.decode(value, { stream: true });
 
-      // 解析 SSE 格式或纯文本流
+      // Parse server-sent event (SSE) format: data: {...}
       const lines = chunk.split('\n');
       for (const line of lines) {
-        // 处理 SSE 格式 (data: ...)
         if (line.startsWith('data: ')) {
           const data = line.slice(6).trim();
-          if (data === '[DONE]') {
-            return;
+          if (!data || data === '[DONE]') {
+            continue;
           }
 
           try {
             const parsed = JSON.parse(data);
-            const content = parsed.choices?.[0]?.delta?.content || '';
+            // Extract reply_chunk from the backend response
+            const content = parsed.reply_chunk || '';
             if (content) {
+              chunkCount++;
+              // Debug: log only every 10th chunk to avoid console spam
+              if (chunkCount % 10 === 0) {
+                console.warn(`[StreamChat] Chunk ${chunkCount}: ${content.slice(0, 50)}...`);
+              }
               yield content;
             }
           } catch {
-            // 忽略解析错误，继续处理下一行
+            // Skip lines that are not valid JSON
             continue;
           }
-        } else if (line.trim()) {
-          // 如果是普通文本，直接返回
-          yield line;
         }
       }
     }
 
-    // 完成时的最后一个解码
+    // Final decode to catch any remaining data
     const finalChunk = decoder.decode();
-    if (finalChunk) {
+    if (finalChunk.trim()) {
       const lines = finalChunk.split('\n');
       for (const line of lines) {
         if (line.startsWith('data: ')) {
           const data = line.slice(6).trim();
-          if (data === '[DONE]') {
-            return;
+          if (!data || data === '[DONE]') {
+            continue;
           }
 
           try {
             const parsed = JSON.parse(data);
-            const content = parsed.choices?.[0]?.delta?.content || '';
+            const content = parsed.reply_chunk || '';
             if (content) {
               yield content;
             }
           } catch {
             continue;
           }
-        } else if (line.trim()) {
-          yield line;
         }
       }
     }
