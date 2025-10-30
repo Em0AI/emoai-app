@@ -1,6 +1,6 @@
-import { defineConfig } from 'vitest/config'
-import vue from '@vitejs/plugin-vue'
-import { fileURLToPath } from 'node:url'
+import { defineConfig } from 'vitest/config';
+import vue from '@vitejs/plugin-vue';
+import { fileURLToPath } from 'node:url';
 
 export default defineConfig({
   plugins: [vue()],
@@ -16,16 +16,16 @@ export default defineConfig({
         '.nuxt/',
         'dist/',
         '**/*.d.ts',
-        '**/index.ts'
-      ]
+        '**/index.ts',
+      ],
     },
     include: ['**/*.{test,spec}.{js,ts}'],
-    exclude: ['node_modules', '.nuxt', 'dist']
+    exclude: ['node_modules', '.nuxt', 'dist'],
   },
   resolve: {
     alias: {
       '~': fileURLToPath(new URL('./', import.meta.url)),
-      '@': fileURLToPath(new URL('./', import.meta.url))
-    }
-  }
-})
+      '@': fileURLToPath(new URL('./', import.meta.url)),
+    },
+  },
+});
