@@ -15,7 +15,7 @@
       <div ref="bubbleAreaRef" class="chat-bubble-area">
         <ChatBubble
           v-for="msg in messages"
-          :key="msg.id"
+          :key="`${msg.id}-${msg.content.length}`"
           :message="msg.content"
           :is-user="msg.role === 'user'"
         />
@@ -142,8 +142,7 @@ const sendMessage = async (): Promise<void> => {
   isLoading.value = true;
   await scrollToBottom();
 
-  let assistantMessage: ChatMessage | null = null;
-  let updateTimeout: NodeJS.Timeout | null = null;
+  let assistantMessageIndex = -1;
   let lastUpdate = Date.now();
 
   try {
@@ -152,18 +151,19 @@ const sendMessage = async (): Promise<void> => {
     const historyMessages = messages.value
       .filter(m => m.id !== 'greeting' && m.id !== userMessage.id);
 
-    let bufferedContent = '';
-
     // 流式接收消息
     for await (const chunk of streamChatMessage(
       characterId,
       userInput,
       historyMessages,
     )) {
+      // chunk 本身就是完整内容（不是增量），直接使用
+      console.warn(`[Chat] Received chunk: "${chunk.slice(0, 50)}..." | Total length: ${chunk.length}`);
+
       // 在接收到第一个 chunk 时创建助手消息
-      if (!assistantMessage) {
+      if (assistantMessageIndex === -1) {
         isLoading.value = false; // 立即隐藏加载状态
-        assistantMessage = {
+        const assistantMessage: ChatMessage = {
           id: `msg_${Date.now()}_assistant`,
           role: 'assistant',
           characterId: characterId,
@@ -171,58 +171,35 @@ const sendMessage = async (): Promise<void> => {
           timestamp: Date.now(),
         };
         messages.value.push(assistantMessage);
-        bufferedContent = chunk;
+        assistantMessageIndex = messages.value.length - 1;
+        console.warn(`[Chat] Created new message with ${chunk.length} chars`);
         await scrollToBottom();
       } else {
-        // 后端返回的 chunk 是累积的完整内容，缓冲后定时更新以避免频繁重渲染
-        bufferedContent = chunk;
+        // 直接更新 messages 数组中的消息内容，触发 Vue 响应式更新
+        const msg = messages.value[assistantMessageIndex];
+        if (msg) {
+          msg.content = chunk;
+          console.warn(`[Chat] Updated message to ${chunk.length} chars`);
+        }
 
-        // 每 50ms 最多更新一次，避免过度渲染
+        // 定期滚动
         const now = Date.now();
-        if (now - lastUpdate >= 50) {
-          assistantMessage.content = bufferedContent;
+        if (now - lastUpdate >= 100) {
           lastUpdate = now;
-
-          // 定期滚动，但不是每次都滚动
-          if (now % 200 < 50) {
-            await scrollToBottom();
-          }
-        } else if (!updateTimeout) {
-          // 设置一个延迟的更新，确保最后一个 chunk 也被显示
-          updateTimeout = setTimeout(() => {
-            if (assistantMessage) {
-              assistantMessage.content = bufferedContent;
-              lastUpdate = Date.now();
-              updateTimeout = null;
-            }
-          }, 50 - (now - lastUpdate));
+          await scrollToBottom();
         }
       }
-    }
-
-    // 确保最后的内容被显示
-    if (assistantMessage && bufferedContent !== assistantMessage.content) {
-      assistantMessage.content = bufferedContent;
     }
 
     // 最后滚动确保内容完整可见
     await scrollToBottom();
     isLoading.value = false;
-
-    if (updateTimeout) {
-      clearTimeout(updateTimeout);
-    }
   } catch (error) {
     console.error('Failed to send message:', error);
     isLoading.value = false;
 
-    // 清理超时
-    if (updateTimeout) {
-      clearTimeout(updateTimeout);
-    }
-
     // 如果有部分响应但最后出错，保留已有内容
-    if (!assistantMessage) {
+    if (assistantMessageIndex === -1) {
       // 添加错误提示消息
       messages.value.push({
         id: `msg_${Date.now()}_error`,

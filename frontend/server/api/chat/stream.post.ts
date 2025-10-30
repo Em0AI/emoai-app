@@ -30,8 +30,10 @@ export default defineEventHandler(async (event) => {
     const session_id = body.session_id || `session-${Date.now()}`;
 
     // Get the backend API URL from config
-    // NUXT_PUBLIC_API_URL should point to the backend server (e.g., http://172.30.161.181:8010)
     const backendBaseUrl = config.public.apiUrl;
+
+    console.warn('[Chat Stream API] Backend URL:', backendBaseUrl);
+    console.warn('[Chat Stream API] Full request URL:', `${backendBaseUrl}/api/chat/stream`);
 
     // Forward the request to the backend streaming API with the correct format
     const apiResponse = await fetch(`${backendBaseUrl}/api/chat/stream`, {
