@@ -90,7 +90,7 @@ const inputText = ref('');
 const isLoading = ref(false);
 
 /**
- * 自动滚动到最新消息
+ * 自动滚动到最新消息（强制滚动到底部）
  */
 const scrollToBottom = async (): Promise<void> => {
   await nextTick();
@@ -98,9 +98,22 @@ const scrollToBottom = async (): Promise<void> => {
     // 使用 requestAnimationFrame 确保在下一帧滚动，避免阻塞
     requestAnimationFrame(() => {
       if (bubbleAreaRef.value) {
+        // 强制滚动到底部
         bubbleAreaRef.value.scrollTop = bubbleAreaRef.value.scrollHeight;
       }
     });
+  }
+};
+
+/**
+ * 立即滚动到底部（不等待 nextTick）
+ */
+const scrollToBottomImmediate = (): void => {
+  if (bubbleAreaRef.value) {
+    const element = bubbleAreaRef.value;
+    element.scrollTop = element.scrollHeight;
+    // 调试日志
+    console.warn(`[Scroll] scrollTop: ${element.scrollTop}, scrollHeight: ${element.scrollHeight}, clientHeight: ${element.clientHeight}`);
   }
 };
 
@@ -182,11 +195,11 @@ const sendMessage = async (): Promise<void> => {
           console.warn(`[Chat] Updated message to ${chunk.length} chars`);
         }
 
-        // 定期滚动
+        // 每次更新都立即滚动到底部
         const now = Date.now();
-        if (now - lastUpdate >= 100) {
+        if (now - lastUpdate >= 50) {
           lastUpdate = now;
-          await scrollToBottom();
+          scrollToBottomImmediate();
         }
       }
     }
@@ -219,8 +232,10 @@ const sendMessage = async (): Promise<void> => {
 .chat-page-container {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: 100vh;
+  max-height: 100vh;
   background-color: var(--color-surface);
+  overflow: hidden;
 }
 
 .chat-back-button {
@@ -236,27 +251,31 @@ const sendMessage = async (): Promise<void> => {
 }
 
 .chat-main-content {
-  flex-grow: 1;
+  flex: 1;
   display: flex;
-  padding: 2.5rem 1.875rem; /* 40px 30px */
+  padding: 1.5rem 1.875rem 1rem; /* top right bottom - 减少上下 padding */
   align-items: flex-start; /* 头像与气泡顶部对齐 */
   min-height: 0; /* Flexbox overflow fix */
+  max-height: 100%; /* 限制最大高度 */
+  overflow: hidden; /* 防止内容溢出 */
 }
 
 .chat-character-info {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 25%; /* 约占内容区宽度的 25%~30% */
-  margin-right: 3.125rem; /* 50px (头像与对话气泡间距) */
+  width: 20%; /* 减小头像区域宽度 */
+  max-width: 200px; /* 限制最大宽度 */
+  margin-right: 2rem; /* 减少间距 */
+  flex-shrink: 0; /* 防止头像区域被压缩 */
 }
 
 .chat-avatar {
-  width: 15rem; /* 240px, 1.2x size */
-  height: 15rem; /* 240px, 1.2x size */
+  width: 12rem; /* 192px - 减小头像 */
+  height: 12rem; /* 192px */
   object-fit: contain;
-  margin-bottom: 0.9375rem; /* 15px */
-  margin-top: 0.5rem; /* Moved up 8px */
+  margin-bottom: 0.75rem; /* 减少间距 */
+  margin-top: 0; /* 移除上边距 */
 }
 
 .chat-role-text {
@@ -266,17 +285,17 @@ const sendMessage = async (): Promise<void> => {
   margin-bottom: 0.75rem; /* 12px */
 }
 
-
-
 .chat-bubble-area {
-  flex-grow: 1;
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  padding-right: 0.5rem; /* 减少右边距以给滚动条留空间 */
-  margin-top: 1.5rem;
+  padding: 0.5rem 0.5rem 0 0; /* top right bottom left - 减少边距 */
   overflow-y: auto;
+  overflow-x: hidden;
   min-height: 0; /* 允许 flex 容器正确计算高度 */
+  max-height: 100%; /* 限制最大高度 */
+  scroll-behavior: smooth; /* 平滑滚动 */
 }
 
 /* 自定义滚动条样式 */
@@ -345,7 +364,7 @@ const sendMessage = async (): Promise<void> => {
   align-items: center;
   gap: 0.75rem; /* Increased gap */
   padding: 0.75rem 1rem; /* 12px 16px */
-  margin: 2rem auto; /* Center horizontally, increase vertical margin */
+  margin: 4rem auto; /* Center horizontally, increase vertical margin */
   height: 80px;
   width: 90%;
   max-width: 800px;
