@@ -13,10 +13,10 @@
 <script setup lang="ts">
 import { CHARACTERS } from '~/constants/characters';
 import AppHeader from '~/components/AppHeader.vue';
+import HomeCharacterGrid from '~/components/home/CharacterGrid.vue';
 import HomeFooter from '~/components/home/HomeFooter.vue';
 
 const characters = CHARACTERS;
-
 </script>
 
 <style scoped>
@@ -40,6 +40,7 @@ const characters = CHARACTERS;
   justify-content: center;
   align-items: center;
   width: 100%;
+  position: relative;
 }
 
 .more-text-container {

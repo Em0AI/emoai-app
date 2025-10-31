@@ -54,7 +54,7 @@
 import { ref, onMounted, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Icon } from '@iconify/vue';
-import { CHARACTERS } from '~/constants/characters';
+import { CHARACTERS, FUSION_CHARACTER } from '~/constants/characters';
 import AppHeader from '~/components/AppHeader.vue';
 import ChatBubble from '~/components/ChatBubble.vue';
 import ExitPrompt from '~/components/chat/ExitPrompt.vue'; // 导入 ExitPrompt 组件
@@ -66,7 +66,8 @@ const showExitPrompt = ref(false);
 const route = useRoute();
 const router = useRouter();
 const characterId = route.params.characterId as string;
-const character = CHARACTERS.find(c => c.id === characterId);
+const allCharacters = [...CHARACTERS, FUSION_CHARACTER];
+const character = allCharacters.find(c => c.id === characterId);
 
 // 气泡区域的 ref，用于自动滚动
 const bubbleAreaRef = ref<HTMLDivElement | null>(null);
