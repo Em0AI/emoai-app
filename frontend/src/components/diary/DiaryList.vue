@@ -9,13 +9,15 @@
         :class="{ selected: diary.id === selectedDiaryId }"
         @click="$emit('select-diary', diary.id)"
       >
-        <span class="item-date">{{ diary.date }}</span>
+        <span class="item-date">{{ formatDate(diary.date) }}</span>
       </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { format, parseISO } from 'date-fns';
+
 interface DiaryEntry {
   id: string;
   date: string;
@@ -28,6 +30,15 @@ defineProps<{
 }>();
 
 defineEmits(['select-diary']);
+
+/** Format ISO date to a human readable form (e.g., 2025-10-18 -> Oct 18, 2025) */
+const formatDate = (d: string) => {
+  try {
+    return format(parseISO(d), 'MMM d, yyyy');
+  } catch {
+    return d;
+  }
+};
 </script>
 
 <style scoped>

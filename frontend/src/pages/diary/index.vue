@@ -2,7 +2,7 @@
   <div class="diary-page-container">
     <AppHeader />
     <div class="page-title-section">
-      <img src="/icons/diary-icon.png" alt="Diary Icon" class="title-icon" >
+      <Icon icon="mdi:book-multiple" class="title-icon" />
       <h1 class="page-title">Your Emotional Diary</h1>
     </div>
     <main class="diary-main-content">
@@ -14,11 +14,14 @@
         />
       </div>
       <div class="column column-middle">
+        <div v-if="isLoading">Loading emotional diary...</div>
+        <div v-else-if="error" class="error-message">{{ error }}</div>
         <EmotionReport
-          v-if="selectedDiary"
+          v-else-if="selectedDiary"
           :diary="selectedDiary"
           :previous-diary="previousDiary"
         />
+        <div v-else>No diary entry selected or available.</div>
       </div>
       <div class="column column-right">
         <MoodRadarChart
@@ -31,21 +34,100 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import { Icon } from '@iconify/vue';
 import AppHeader from '~/components/AppHeader.vue';
 import DiaryList from '~/components/diary/DiaryList.vue';
 import EmotionReport from '~/components/diary/EmotionReport.vue';
 import MoodRadarChart from '~/components/diary/MoodRadarChart.vue';
 import { diaryEntries } from '~/constants/diaryData';
+import { getEmotionStatsToday, type EmotionStatsResponse } from '~/services/emotionStatsService';
 
+// Define the structure of a diary entry for props (re-declared for clarity in this file)
+interface DiaryEntry {
+  id: string;
+  date: string;
+  emotions: Record<string, number>;
+  summary: string;
+  observation: string;
+  exercise: string;
+  message: string;
+}
+
+const emotionStats = ref<EmotionStatsResponse | null>(null);
+const isLoading = ref(true);
+const error = ref<string | null>(null);
+
+onMounted(async () => {
+  try {
+    emotionStats.value = await getEmotionStatsToday();
+  } catch (err) {
+    error.value = 'Failed to fetch emotion stats.';
+    console.error(err);
+  } finally {
+    isLoading.value = false;
+  }
+});
+
+// Mock diary entries for now, will integrate fetched data
 const diaries = ref(diaryEntries);
 const selectedDiaryId = ref<string>(diaries.value[0]?.id ?? '');
 
-const selectedDiary = computed(() => {
+const parsedAiDailyReport = computed(() => {
+  if (!emotionStats.value?.ai_daily_report) {
+    return {
+      summary: '',
+      observation: '',
+      exercise: '',
+      message: '',
+    };
+  }
+
+  const report = emotionStats.value.ai_daily_report;
+
+  // Parse the multi-line report format from backend
+  // Format: "Emotional Summary: ...\nAI Observation: ...\nHealing Exercise: ...\nAI's Message: ..."
+  const summaryMatch = report.match(/Emotional Summary:\s*(.*?)(?=\n(?:AI Observation:|$))/s);
+  const observationMatch = report.match(/AI Observation:\s*(.*?)(?=\n(?:Healing Exercise:|$))/s);
+  const exerciseMatch = report.match(/Healing Exercise:\s*(.*?)(?=\n(?:AI's Message:|$))/s);
+  const messageMatch = report.match(/AI's Message:\s*(.*?)$/s);
+
+  return {
+    summary: summaryMatch?.[1]?.trim() || 'No summary available',
+    observation: observationMatch?.[1]?.trim() || 'No observation available',
+    exercise: exerciseMatch?.[1]?.trim() || 'No exercise available',
+    message: messageMatch?.[1]?.trim() || 'No message available',
+  };
+});
+
+const selectedDiary = computed<DiaryEntry | null>(() => {
+  // For now, we'll prioritize the fetched AI report if available
+  if (emotionStats.value) {
+    return {
+      id: 'ai-report-today', // A unique ID for the AI report
+      date: emotionStats.value.date,
+      emotions: emotionStats.value.emotion_counts, // Use emotion_counts for today's emotions
+      ...parsedAiDailyReport.value,
+    };
+  }
+  // Fallback to mock data if no AI report is fetched
   return diaries.value.find(d => d.id === selectedDiaryId.value) || null;
 });
 
 const previousDiary = computed(() => {
+  // For the AI report, we can use yesterday_counts to construct a "previous" diary
+  if (emotionStats.value) {
+    return {
+      id: 'ai-report-yesterday',
+      date: 'Yesterday', // Or parse a date from the report if available
+      emotions: emotionStats.value.yesterday_counts,
+      summary: 'Summary from yesterday (placeholder)',
+      observation: 'Observation from yesterday (placeholder)',
+      exercise: 'Exercise from yesterday (placeholder)',
+      message: 'Message from yesterday (placeholder)',
+    };
+  }
+
   if (!selectedDiary.value) return null;
   const selectedIndex = diaries.value.findIndex(d => d.id === selectedDiaryId.value);
   // Since the array is reverse-chronological, the previous day is at the next index
@@ -56,6 +138,7 @@ const previousDiary = computed(() => {
 function handleSelectDiary(id: string) {
   selectedDiaryId.value = id;
 }
+
 </script>
 
 <style scoped>
@@ -78,6 +161,7 @@ function handleSelectDiary(id: string) {
 .title-icon {
   width: 32px;
   height: 32px;
+  color: inherit;
 }
 
 .page-title {

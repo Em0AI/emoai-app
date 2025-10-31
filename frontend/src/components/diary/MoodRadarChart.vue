@@ -35,7 +35,8 @@ const props = defineProps<{
 
 const emotionLabels: Record<string, string> = {
   happy: 'Happy',
-  content: 'Content',
+  satisfied: 'Satisfied', // some sources use 'satisfied'
+  content: 'Satisfied', // alias: map content -> satisfied
   calm: 'Calm',
   anxious: 'Anxious',
   angry: 'Angry',
@@ -45,10 +46,19 @@ const emotionLabels: Record<string, string> = {
 const colors = ['#fbbf24', '#34d399', '#60a5fa', '#f87171', '#ef4444', '#a78bfa'];
 
 const emotionData = computed(() => {
-  return Object.entries(props.emotions).map(([key, value]) => ({
-    name: emotionLabels[key],
-    value: value,
-  }));
+  // Normalize and map keys: support values in 0-10 or 0-100 ranges
+  return Object.entries(props.emotions).map(([key, value]) => {
+    const label = emotionLabels[key] ?? key;
+    let val = Number(value || 0);
+    // If values look like 0-10 scale, convert to percentage
+    if (val <= 10) val = Math.round(val * 10);
+    // clamp 0-100
+    val = Math.max(0, Math.min(100, val));
+    return {
+      name: label,
+      value: val,
+    };
+  });
 });
 
 const option = computed(() => ({
