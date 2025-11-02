@@ -2,7 +2,7 @@
   <div class="diary-page-container">
     <AppHeader />
     <div class="page-title-section">
-      <Icon icon="mdi:book-multiple" class="title-icon" />
+      <Icon icon="lucide:book" class="title-icon" />
       <h1 class="page-title">Your Emotional Diary</h1>
     </div>
     <main class="diary-main-content">
@@ -41,98 +41,237 @@ import DiaryList from '~/components/diary/DiaryList.vue';
 import EmotionReport from '~/components/diary/EmotionReport.vue';
 import MoodRadarChart from '~/components/diary/MoodRadarChart.vue';
 import { diaryEntries } from '~/constants/diaryData';
-import { getEmotionStatsToday, type EmotionStatsResponse } from '~/services/emotionStatsService';
+import { useEmotionDataCache } from '~/composables/useEmotionDataCache';
+
+console.warn('[Diary Page] Script loaded!');
 
 // Define the structure of a diary entry for props (re-declared for clarity in this file)
 interface DiaryEntry {
   id: string;
   date: string;
-  emotions: Record<string, number>;
+  emotions: { happy: number; content: number; calm: number; anxious: number; angry: number; sad: number };
   summary: string;
   observation: string;
   exercise: string;
   message: string;
 }
 
-const emotionStats = ref<EmotionStatsResponse | null>(null);
 const isLoading = ref(true);
 const error = ref<string | null>(null);
 
+const cacheManager = useEmotionDataCache();
+
+// Initialize with mock data, will be replaced with fetched data
+const diaries = ref(diaryEntries);
+const selectedDiaryId = ref<string>('');
+
 onMounted(async () => {
   try {
-    emotionStats.value = await getEmotionStatsToday();
+    console.warn('[Diary Page] Starting initialization...');
+
+    // 初始化缓存（加载 emotion_all.json 和 emotion_today.json）
+    await cacheManager.initializeData();
+    console.warn('[Diary Page] Loaded emotionToday:', cacheManager.emotionToday.value?.date);
+    console.warn('[Diary Page] Loaded emotionAll dates:', Object.keys(cacheManager.emotionAll.value));
+
+    // 重新刷新一次确保获取最新的 emotion_today 数据
+    await cacheManager.refreshData();
+    console.warn('[Diary Page] Refreshed emotion_today with latest data');
+
+    // 从 emotion_all 生成日记列表
+    const allDates = Object.keys(cacheManager.emotionAll.value).sort().reverse();
+    const generatedDiaries: DiaryEntry[] = allDates.map((date) => {
+      const dayData = cacheManager.emotionAll.value[date];
+      if (!dayData) return null;
+
+      // 转换 emotion_counts 为前端格式
+      const emotionCounts = dayData.emotion_counts as Record<string, number>;
+      const standardEmotions = {
+        happy: emotionCounts.joy || 0,
+        content: emotionCounts.satisfied || 0,
+        calm: emotionCounts.calm || emotionCounts.neutral || 0,
+        anxious: emotionCounts.anxious || emotionCounts.fear || emotionCounts.disgust || 0,
+        angry: emotionCounts.angry || 0,
+        sad: emotionCounts.sad || emotionCounts.sadness || 0,
+      };
+
+      // 归一化到 100
+      const total = Object.values(standardEmotions).reduce((a, b) => a + b, 0);
+      if (total > 0) {
+        Object.keys(standardEmotions).forEach((key) => {
+          standardEmotions[key as keyof typeof standardEmotions] = Math.round(
+            (standardEmotions[key as keyof typeof standardEmotions] / total) * 100,
+          );
+        });
+      }
+
+      return {
+        id: `emotion-${date}`,
+        date,
+        emotions: standardEmotions,
+        summary: dayData.parsedReport?.summary || 'No summary available',
+        observation: dayData.parsedReport?.observation || 'No observation available',
+        exercise: dayData.parsedReport?.exercise || 'No exercise available',
+        message: dayData.parsedReport?.message || 'No message available',
+      };
+    }).filter((d) => d !== null) as DiaryEntry[];
+
+    diaries.value = generatedDiaries;
+    console.warn('[Diary Page] Generated', generatedDiaries.length, 'diary entries from emotion_all');
+
+    // 自动选中今天
+    const todayEntry = generatedDiaries.find((d) => d.date === cacheManager.emotionToday.value?.date);
+    if (todayEntry) {
+      selectedDiaryId.value = todayEntry.id;
+      console.warn('[Diary Page] Selected today diary:', todayEntry.id);
+    }
   } catch (err) {
-    error.value = 'Failed to fetch emotion stats.';
-    console.error(err);
+    console.error('[Diary Page] Initialization error:', err);
+    error.value = err instanceof Error ? err.message : 'Unknown error';
   } finally {
     isLoading.value = false;
   }
 });
 
-// Mock diary entries for now, will integrate fetched data
-const diaries = ref(diaryEntries);
-const selectedDiaryId = ref<string>(diaries.value[0]?.id ?? '');
-
 const parsedAiDailyReport = computed(() => {
-  if (!emotionStats.value?.ai_daily_report) {
+  const today = cacheManager.emotionToday.value;
+  if (!today?.parsedReport) {
     return {
-      summary: '',
-      observation: '',
-      exercise: '',
-      message: '',
+      summary: 'No summary available',
+      observation: 'No observation available',
+      exercise: 'No exercise available',
+      message: 'No message available',
     };
   }
 
-  const report = emotionStats.value.ai_daily_report;
-
-  // Parse the multi-line report format from backend
-  // Format: "Emotional Summary: ...\nAI Observation: ...\nHealing Exercise: ...\nAI's Message: ..."
-  const summaryMatch = report.match(/Emotional Summary:\s*(.*?)(?=\n(?:AI Observation:|$))/s);
-  const observationMatch = report.match(/AI Observation:\s*(.*?)(?=\n(?:Healing Exercise:|$))/s);
-  const exerciseMatch = report.match(/Healing Exercise:\s*(.*?)(?=\n(?:AI's Message:|$))/s);
-  const messageMatch = report.match(/AI's Message:\s*(.*?)$/s);
-
   return {
-    summary: summaryMatch?.[1]?.trim() || 'No summary available',
-    observation: observationMatch?.[1]?.trim() || 'No observation available',
-    exercise: exerciseMatch?.[1]?.trim() || 'No exercise available',
-    message: messageMatch?.[1]?.trim() || 'No message available',
+    summary: today.parsedReport.summary,
+    observation: today.parsedReport.observation,
+    exercise: today.parsedReport.exercise,
+    message: today.parsedReport.message,
   };
 });
 
 const selectedDiary = computed<DiaryEntry | null>(() => {
-  // For now, we'll prioritize the fetched AI report if available
-  if (emotionStats.value) {
+  // 优先从 diaries 数组中查找（用户选择的日记）
+  const found = diaries.value.find(d => d.id === selectedDiaryId.value);
+  if (found) {
+    console.warn('[Diary Page] Using selected diary from list:', found.id);
+    return found;
+  }
+
+  // 如果没有选中但有 emotion_today，用它（当前日期）
+  if (cacheManager.emotionToday.value) {
+    const today = cacheManager.emotionToday.value;
+    const emotionCounts = today.emotion_counts;
+
+    const emotionMapping: Record<string, keyof typeof standardEmotions> = {
+      joy: 'happy',
+      satisfied: 'content',
+      calm: 'calm',
+      neutral: 'calm',
+      anxious: 'anxious',
+      angry: 'angry',
+      sad: 'sad',
+      sadness: 'sad',
+      disgust: 'anxious',
+      fear: 'anxious',
+      surprise: 'happy',
+    };
+
+    const standardEmotions = {
+      happy: 0,
+      content: 0,
+      calm: 0,
+      anxious: 0,
+      angry: 0,
+      sad: 0,
+    };
+
+    Object.entries(emotionCounts).forEach(([key, value]) => {
+      const mappedKey = emotionMapping[key] || 'calm';
+      standardEmotions[mappedKey] += value;
+    });
+
+    const total = Object.values(standardEmotions).reduce((a, b) => a + b, 0);
+    if (total > 0) {
+      Object.keys(standardEmotions).forEach((key) => {
+        standardEmotions[key as keyof typeof standardEmotions] = Math.round(
+          (standardEmotions[key as keyof typeof standardEmotions] / total) * 100,
+        );
+      });
+    }
+
+    const report = parsedAiDailyReport.value;
     return {
-      id: 'ai-report-today', // A unique ID for the AI report
-      date: emotionStats.value.date,
-      emotions: emotionStats.value.emotion_counts, // Use emotion_counts for today's emotions
-      ...parsedAiDailyReport.value,
+      id: 'emotion-today',
+      date: today.date,
+      emotions: standardEmotions,
+      summary: report.summary || `${today.total_entries} entries today`,
+      observation: report.observation || `Focus: ${Object.entries(emotionCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A'}`,
+      exercise: report.exercise || 'Practice mindfulness',
+      message: report.message || 'Take care of yourself',
     };
   }
-  // Fallback to mock data if no AI report is fetched
-  return diaries.value.find(d => d.id === selectedDiaryId.value) || null;
+
+  console.warn('[Diary Page] No diary selected and no today data');
+  return null;
 });
 
-const previousDiary = computed(() => {
-  // For the AI report, we can use yesterday_counts to construct a "previous" diary
-  if (emotionStats.value) {
-    return {
-      id: 'ai-report-yesterday',
-      date: 'Yesterday', // Or parse a date from the report if available
-      emotions: emotionStats.value.yesterday_counts,
-      summary: 'Summary from yesterday (placeholder)',
-      observation: 'Observation from yesterday (placeholder)',
-      exercise: 'Exercise from yesterday (placeholder)',
-      message: 'Message from yesterday (placeholder)',
-    };
+const previousDiary = computed<DiaryEntry | null>(() => {
+  // Get yesterday's data from emotion_today
+  const today = cacheManager.emotionToday.value;
+  if (!today?.yesterday_counts) {
+    return null;
   }
 
-  if (!selectedDiary.value) return null;
-  const selectedIndex = diaries.value.findIndex(d => d.id === selectedDiaryId.value);
-  // Since the array is reverse-chronological, the previous day is at the next index
-  const isFirstEntry = selectedIndex === diaries.value.length - 1;
-  return isFirstEntry ? null : diaries.value[selectedIndex + 1];
+  const yesterdayEmotions = today.yesterday_counts;
+  const emotionMapping: Record<string, keyof typeof standardEmotions> = {
+    joy: 'happy',
+    satisfied: 'content',
+    calm: 'calm',
+    neutral: 'calm',
+    anxious: 'anxious',
+    angry: 'angry',
+    sad: 'sad',
+    sadness: 'sad',
+    disgust: 'anxious',
+    fear: 'anxious',
+    surprise: 'happy',
+  };
+
+  const standardEmotions = {
+    happy: 0,
+    content: 0,
+    calm: 0,
+    anxious: 0,
+    angry: 0,
+    sad: 0,
+  };
+
+  Object.entries(yesterdayEmotions).forEach(([key, value]) => {
+    const mappedKey = emotionMapping[key] || 'calm';
+    standardEmotions[mappedKey] += value;
+  });
+
+  const total = Object.values(standardEmotions).reduce((a, b) => a + b, 0);
+  if (total > 0) {
+    Object.keys(standardEmotions).forEach((key) => {
+      standardEmotions[key as keyof typeof standardEmotions] = Math.round(
+        (standardEmotions[key as keyof typeof standardEmotions] / total) * 100,
+      );
+    });
+  }
+
+  return {
+    id: 'emotion-yesterday',
+    date: 'Yesterday',
+    emotions: standardEmotions,
+    summary: 'Yesterday\'s Emotional Summary',
+    observation: 'Previous day comparison',
+    exercise: 'Reflect on changes',
+    message: 'Track your progress',
+  };
 });
 
 function handleSelectDiary(id: string) {

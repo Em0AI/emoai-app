@@ -33,6 +33,8 @@ const props = defineProps<{
   emotions: Record<string, number>
 }>();
 
+console.warn('[MoodRadarChart] Props received:', props.emotions);
+
 const emotionLabels: Record<string, string> = {
   happy: 'Happy',
   satisfied: 'Satisfied', // some sources use 'satisfied'
@@ -46,12 +48,10 @@ const emotionLabels: Record<string, string> = {
 const colors = ['#fbbf24', '#34d399', '#60a5fa', '#f87171', '#ef4444', '#a78bfa'];
 
 const emotionData = computed(() => {
-  // Normalize and map keys: support values in 0-10 or 0-100 ranges
-  return Object.entries(props.emotions).map(([key, value]) => {
+  // Normalize and map keys: assumes values are already in 0-100 range
+  const data = Object.entries(props.emotions).map(([key, value]) => {
     const label = emotionLabels[key] ?? key;
     let val = Number(value || 0);
-    // If values look like 0-10 scale, convert to percentage
-    if (val <= 10) val = Math.round(val * 10);
     // clamp 0-100
     val = Math.max(0, Math.min(100, val));
     return {
@@ -59,6 +59,8 @@ const emotionData = computed(() => {
       value: val,
     };
   });
+  console.warn('[MoodRadarChart] emotionData computed:', data);
+  return data;
 });
 
 const option = computed(() => ({

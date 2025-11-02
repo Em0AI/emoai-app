@@ -15,3 +15,12 @@ export interface EmotionAnalysis {
   scores: EmotionScores
   keywords: string[]
 }
+
+export interface DailyEmotionStats {
+  emotion_counts: Record<string, number>
+  logCount: number
+}
+
+export interface EmotionByDate {
+  [date: string]: DailyEmotionStats
+}
