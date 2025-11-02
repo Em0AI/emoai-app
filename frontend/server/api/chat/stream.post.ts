@@ -2,6 +2,7 @@ import { defineEventHandler, readBody, createError, setResponseHeader } from 'h3
 
 export default defineEventHandler(async (event) => {
   try {
+    // @ts-expect-error - Nuxt server auto-import
     const config = useRuntimeConfig(event);
     const body = await readBody(event);
     const { messages } = body;

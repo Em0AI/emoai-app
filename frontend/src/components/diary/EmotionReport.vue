@@ -33,11 +33,6 @@
       <p class="section-content">{{ diary.exercise }}</p>
     </div>
 
-    <div class="report-section">
-      <h2 class="section-title">AI's Message</h2>
-      <p class="section-content message">{{ diary.message }}</p>
-    </div>
-
   </div>
 </template>
 
@@ -67,11 +62,11 @@ const moodKeywords = computed(() => {
 
 const emotionTrend = computed(() => {
   if (!props.previousDiary) {
-    return 'Today is a new beginning. Let’s take care of our emotional well-being together.';
+    return 'Today is a new beginning. Let\'s take care of our emotional well-being together.';
   }
 
-  const currentMainPositive = props.diary.emotions.happy + props.diary.emotions.calm;
-  const prevMainPositive = props.previousDiary.emotions.happy + props.previousDiary.emotions.calm;
+  const currentMainPositive = (props.diary.emotions?.happy ?? 0) + (props.diary.emotions?.calm ?? 0);
+  const prevMainPositive = (props.previousDiary.emotions?.happy ?? 0) + (props.previousDiary.emotions?.calm ?? 0);
 
   if (currentMainPositive >= prevMainPositive) {
     return 'Your mood today is more relaxed and stable than yesterday. Although there are still feelings of anxiety, overall you are better able to take gentle care of yourself.';
