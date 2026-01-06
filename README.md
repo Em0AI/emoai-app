@@ -34,27 +34,25 @@ This project is organized into a frontend, a backend, and documentation, aiming 
 
 | Category      | Technology                                                                                                                                |
 |---------------|-------------------------------------------------------------------------------------------------------------------------------------------|
-| **Frontend**  | [Nuxt.js](https://nuxt.com/) (Vue.js), [TypeScript](https://www.typescriptlang.org/), [Bun](https://bun.sh/), [Tailwind CSS](https://tailwindcss.com/) |
-| **Backend**   | [FastAPI](https://fastapi.tiangolo.com/), [Python](https://www.python.org/), [Uvicorn](https://www.uvicorn.org/)                               |
-| **AI/ML**     | `nvidia/llama-3.1-nemotron-nano-8b-v1`, `transformers`, `torch`, `faiss-cpu` (for RAG)                                                       |
-| **Assets**    | All static assets are managed within the `/frontend/public/` directory.                                                                   |
+| **Full Stack**  | [Nuxt.js](https://nuxt.com/) (Vue.js), [TypeScript](https://www.typescriptlang.org/), [Bun](https://bun.sh/), [Tailwind CSS](https://tailwindcss.com/) |
+| **Server**    | [Nuxt Nitro](https://nitro.unjs.io/) (Serverless compatible)                                                                              |
+| **AI/ML**     | `nvidia/llama-3.1-nemotron-nano-8b-v1` (Chat), `nvidia/llama-3.2-nv-embedqa-1b-v2` (RAG), OpenAI SDK (Client)                            |
+| **Assets**    | Static assets managed in `/assets/`                                                                                                       |
 
 ## Project Structure
 
 ```
 emoai-app/
-├── backend/         # Backend FastAPI Application
-│   ├── src/
-│   │   ├── app.py   # FastAPI server entry point
-│   │   └── main.py  # Core conversation logic
-│   └── requirements.txt
-├── frontend/        # Frontend Nuxt.js Application
-│   ├── src/
-│   │   ├── app.vue
-│   │   ├── pages/   # Page components
-│   │   └── components/ # Reusable components
-│   ├── nuxt.config.ts
-│   └── package.json
+├── src/             # Source code
+│   ├── app.vue
+│   ├── pages/       # Page components
+│   └── components/  # Reusable components
+├── server/          # Server-side logic (Nitro)
+│   ├── api/         # API Endpoints
+│   ├── utils/       # Shared utilities (Emotion, RAG, etc.)
+│   └── data/        # Data persistence (Indexes, Logs)
+├── nuxt.config.ts
+├── package.json
 ├── docs/            # Project documentation
 └── README.md        # The file you are currently reading
 ```
@@ -63,41 +61,21 @@ emoai-app/
 
 ### 1. Prerequisites
 
-*   Ensure you have [Node.js](https://nodejs.org/) (v18+), [Bun](https://bun.sh/), and [Conda](https://docs.conda.io/en/latest/miniconda.html) installed.
-*   Obtain an NVIDIA API key and configure it for the backend.
+*   Ensure you have [Node.js](https://nodejs.org/) (v18+), [Bun](https://bun.sh/) installed.
+*   Obtain an NVIDIA API key.
 
-### 2. Backend Setup
-
-```bash
-# 1. Navigate to the backend directory
-cd backend
-
-# 2. Create and activate a Conda environment
-conda create --name emoai python=3.9 -y
-conda activate emoai
-
-# 3. Install dependencies
-pip install -r requirements.txt
-
-# 4. Navigate to the src directory
-cd src
-
-# 5. Start the development server (with hot-reloading)
-# The server will run on http://127.0.0.1:8010
-uvicorn app:app --reload --host 0.0.0.0 --port 8010
-```
-
-### 3. Frontend Setup
+### 2. Setup & Run
 
 ```bash
-# 1. (In a separate terminal) Navigate to the frontend directory
-cd frontend
-
-# 2. Install dependencies
+# 1. Install dependencies
 bun install
 
+# 2. Configure Environment
+# Create .env.local in the root directory and add:
+# NVIDIA_API_KEY=your_key_here
+
 # 3. Start the development server
-# The application will be available at http://localhost:3000
+# Similar to before, the app runs at http://localhost:3000
 bun run dev
 ```
 
